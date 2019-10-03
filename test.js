@@ -6,6 +6,7 @@
 // @author       
 // @match        https://www.reddit.com/*
 // @grant        none
+// @run-at       document-end
 // ==/UserScript==
 
 
