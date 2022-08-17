@@ -1,4 +1,3 @@
-
 // ==UserScript==
 // @name         Vk ads hide
 // @namespace    http://tampermonkey.net/
