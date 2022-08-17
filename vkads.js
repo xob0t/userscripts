@@ -1,31 +1,36 @@
-
 // ==UserScript==
-// @name         Vk ads hide
-// @namespace    http://tampermonkey.net/
-// @version      0.1
-// @description  x
-// @author       me
-// @match        https://vk.com/*
-// @icon         https://www.google.com/s2/favicons?sz=64&domain=vk.com
-// @grant        none
+// @name        Reddit Infinite Scrolling
+// @namespace   darkred
+// @version     2018.4.25
+// @description Adds infinite scrolling to subreddits and to comments.
+// @author      darkred
+// @license     MIT
+// @include     https://www.reddit.com/*
+// @include     https://old.reddit.com/*
+// @grant       unsafeWindow
+// @require     http://code.jquery.com/jquery-2.1.4.min.js
+// @require     https://cdnjs.cloudflare.com/ajax/libs/jscroll/2.4.1/jquery.jscroll.min.js
+// @supportURL  https://github.com/darkred/Userscripts/issues
 // ==/UserScript==
 
-function getElementByXpath(path) {
-    return document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
-  }
-  
-  const waitInterval = setInterval(async () => {
-  
-  try {
-      let wall_marked_as_ads = getElementByXpath("//div[not(@hidden)][@data-post-id][.//div[@class='wall_marked_as_ads']]")
-      wall_marked_as_ads.style.display = "none";
-      wall_marked_as_ads.setAttribute('hidden', 'hidden');
-      console.log('реклама спрятана');
-      } catch(e) {};
-  try {
-      let ad_post = getElementByXpath("//div[not(@hidden)][@data-ad-block-uid]");
-      ad_post.style.display = "none";
-      ad_post.setAttribute('hidden', 'hidden');
-      console.log('реклама спрятана');
-      } catch(e) {};
-      }, 100);
+// Jscroll code
+$('#siteTable').jscroll({
+	nextSelector: 'span.nextprev a:last',
+	contentSelector: '#siteTable .thing, .nav-buttons',
+	callback: function() {
+		$('.nav-buttons').remove();
+	}
+});
+
+
+//if current URL contains the string 'comments', then click the 'more comments' button when scrolling at the end of the page
+if (/(.*comments.*)/.test(document.location)) {
+	$(window).scroll(function() {
+		if ($(window).scrollTop() + $(window).height() > $(document).height() - 100) {
+			// console.log('bottom!');
+			var element = unsafeWindow.document.getElementsByClassName('morecomments');
+			var last = element.length;
+			element[last - 1].firstChild.click();
+		}
+	});
+}
