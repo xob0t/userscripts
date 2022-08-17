@@ -1,3 +1,4 @@
+
 // ==UserScript==
 // @name         Vk ads hide
 // @namespace    http://tampermonkey.net/
@@ -9,26 +10,22 @@
 // @grant        none
 // ==/UserScript==
 
-(function() {
-    'use strict';
-    function getElementByXpath(path) {
-  return document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
-}
-
-const waitInterval = setInterval(async () => {
-
-try {
-    let wall_marked_as_ads = getElementByXpath("//div[not(@hidden)][@data-post-id][.//div[@class='wall_marked_as_ads']]")
-    wall_marked_as_ads.style.display = "none";
-    wall_marked_as_ads.setAttribute('hidden', 'hidden');
-    console.log('реклама спрятана');
-    } catch(e) {};
-try {
-    let ad_post = getElementByXpath("//div[not(@hidden)][@data-ad-block-uid]");
-    ad_post.style.display = "none";
-    ad_post.setAttribute('hidden', 'hidden');
-    console.log('реклама спрятана');
-    } catch(e) {};
-    }, 100);
-
-})();
+function getElementByXpath(path) {
+    return document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+  }
+  
+  const waitInterval = setInterval(async () => {
+  
+  try {
+      let wall_marked_as_ads = getElementByXpath("//div[not(@hidden)][@data-post-id][.//div[@class='wall_marked_as_ads']]")
+      wall_marked_as_ads.style.display = "none";
+      wall_marked_as_ads.setAttribute('hidden', 'hidden');
+      console.log('реклама спрятана');
+      } catch(e) {};
+  try {
+      let ad_post = getElementByXpath("//div[not(@hidden)][@data-ad-block-uid]");
+      ad_post.style.display = "none";
+      ad_post.setAttribute('hidden', 'hidden');
+      console.log('реклама спрятана');
+      } catch(e) {};
+      }, 100);
