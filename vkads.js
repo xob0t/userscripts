@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Vk ads hide
+// @name         hide VK ads
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.5
 // @description  x
 // @author       me
 // @match        https://vk.com/*
@@ -9,6 +9,8 @@
 // @grant        none
 // ==/UserScript==
 
+(function() {
+    'use strict';
     function getElementByXpath(path) {
   return document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
 }
@@ -22,9 +24,24 @@ try {
     console.log('реклама спрятана');
     } catch(e) {};
 try {
+    let postwithalink = getElementByXpath("//div[not(@hidden)][@data-post-id][.//a[@class='mail_link ']]")
+    postwithalink.style.display = "none";
+    postwithalink.setAttribute('hidden', 'hidden');
+    console.log('пост с ссылкой спрятан');
+    } catch(e) {};
+try {
     let ad_post = getElementByXpath("//div[not(@hidden)][@data-ad-block-uid]");
     ad_post.style.display = "none";
     ad_post.setAttribute('hidden', 'hidden');
     console.log('реклама спрятана');
     } catch(e) {};
+try {
+    let SecondaryAttachment = getElementByXpath("//div[not(@hidden)][@data-post-id][.//a[@class='SecondaryAttachment SecondaryAttachment--interactive']]")
+    SecondaryAttachment.style.display = "none";
+    SecondaryAttachment.setAttribute('hidden', 'hidden');
+    console.log('пост с "SecondaryAttachment" ссылкой спрятан');
+    } catch(e) {};
+
+
     }, 100);
+})();
