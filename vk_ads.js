@@ -3,7 +3,7 @@
 // @namespace    http://tampermonkey.net/
 // @version      0.5
 // @description  x
-// @author       me
+// @author       xb0t
 // @match        https://vk.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=vk.com
 // @grant        none
