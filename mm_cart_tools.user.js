@@ -68,17 +68,19 @@
             var cartId = dataLayerCart.cart.lineItems[0].cartId;
             getCartData(cartId)
                 .then(cart => {
-                    var currentItems = extractItems(cart.itemGroups);
-                    var currentItemsStringified = JSON.stringify(currentItems);
-                    copyToClipboard(currentItemsStringified);
-                    copyButton.textContent = 'Copied!'; // Change button text when copied
-                    setTimeout(function() {
-                        copyButton.textContent = 'Copy currentItems'; // Revert button text after a brief delay
-                    }, 1500); // Change button text back after 1.5 seconds
-                })
+                var currentItems = extractItems(cart.itemGroups);
+                var currentItemsStringified = JSON.stringify(currentItems);
+                copyToClipboard(currentItemsStringified);
+                copyButton.textContent = 'Copied!'; // Change button text when copied
+                copyButton.style.backgroundColor = 'orange';
+                setTimeout(function() {
+                    copyButton.textContent = 'Copy Cart'; // Revert button text after a brief delay
+                    copyButton.style.backgroundColor = 'green';
+                }, 3000); // Change button text back after 3 seconds
+            })
                 .catch(error => {
-                    console.error("Error occurred while fetching cart data:", error);
-                });
+                console.error("Error occurred while fetching cart data:", error);
+            });
         } else {
             console.log('Cart JSON not found in the dataLayer array. Retrying...');
             setTimeout(checkForCart, 1000); // Check again after 1 second
