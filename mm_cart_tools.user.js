@@ -65,7 +65,7 @@
             var cartId = dataLayerCart.cart.lineItems[0].cartId;
             getCartData(cartId)
                 .then(cart => {
-                    var currentItems = extractItems(cart.itemGroups);
+                    var currentItems = extractItemsAndCartInfo(cart);
                     var currentItemsStringified = JSON.stringify(currentItems);
                     copyToClipboard(currentItemsStringified);
                     copyButton.textContent = 'Copied!'; // Change button text when copied
@@ -86,11 +86,11 @@
     function handleSubmit() {
         var enteredText = inputField.value.trim();
         if (enteredText !== '') {
-            var newItems;
+            var newCartData;
             try {
-                newItems = JSON.parse(enteredText);
+                newCartData = JSON.parse(enteredText);
             } catch (error) {
-                console.error('Invalid input. Please enter a valid JSON array.');
+                console.error('Invalid input. Please enter a valid JSON.');
                 return;
             }
 
@@ -106,9 +106,10 @@
             if (cartId) {
                 getCartData(cartId)
                     .then(cart => {
-                    currentItems = extractItems(cart.itemGroups) || []; // Set currentItems to an empty array if null
-                    if (!allItemsInCurrentItems(currentItems, newItems)) {
-                        addToCart(newItems, cartId);
+                    currentItems = extractItemsAndCartInfo(cart) || []; // Set currentItems to an empty array if null
+                    debugger
+                    if (!allItemsInCurrentItems(currentItems, newCartData.extractedItems)) {
+                        addToCart(newCartData.extractedItems, cartId, newCartData.extractedCartInfo.type, newCartData.extractedCartInfo.locationId);
                         location.reload();
                     } else {
                         console.log('All items from newItems are already in currentItems.');
@@ -119,8 +120,10 @@
                 });
             } else {
                 console.log('Cart ID not found or invalid. Proceeding without cartId.');
-                addToCart(newItems, cartId);
-                location.reload();
+                debugger
+                addToCart(newCartData.extractedItems, cartId, newCartData.extractedCartInfo.type, newCartData.extractedCartInfo.locationId, newCartData.extractedCartInfo.clientAddress);
+
+                //location.reload();
                 // Perform an action here if cartId is not available
                 // For example, you might want to handle adding items to the cart without a cartId
             }
@@ -136,8 +139,8 @@
     submitButton.addEventListener('click', handleSubmit);
 
 
-    function extractItems(itemGroups) {
-        return itemGroups.map(item => {
+    function extractItemsAndCartInfo(data) {
+        const extractedItems = data.itemGroups.map(item => {
             return {
                 offer: {
                     id: null,
@@ -151,17 +154,28 @@
                 discounts: []
             };
         });
+
+        const extractedCartInfo = {
+            type: data.type,
+            locationId: data.locationId,
+            clientAddress: data.clientAddress,
+        };
+
+        return {
+            extractedItems,
+            extractedCartInfo
+        };
     }
-    function addToCart(items, cartId) {
+    function addToCart(items, cartId,cartType, locationId, clientAddress) {
     fetch("https://megamarket.ru/api/mobile/v2/cartService/offers/add", {
         "body": JSON.stringify({
             "identification": {
                 "id": cartId
             },
             "items": items,
-            "cartType": "CART_TYPE_DEFAULT",
-            "clientAddress": null,
-            "locationId": null
+            "cartType": cartType,
+            "clientAddress": clientAddress,
+            "locationId": locationId
         }),
         "method": "POST",
         "mode": "cors",
@@ -232,7 +246,7 @@
                 .then(cart => {
                 console.log(cart.itemGroups); // Access cart data here
                 let currentItems = extractItems(cart.itemGroups);
-                let newItems = extractItems(newitemGroups);
+                let newItems = extractItems(data);
 
                 if (allItemsInCurrentItems(currentItems, newItems)){
                     return
