@@ -13,50 +13,53 @@
 (function() {
 
     'use strict';
-
     // Create a container div for button, input field, and submit button
     var container = document.createElement('div');
     container.style.position = 'fixed';
-    container.style.bottom = '20px'; // Adjust distance from bottom as needed
-    container.style.left = '20px'; // Adjust distance from left as needed
-    container.style.zIndex = '9999'; // Ensure it's above other elements
-    container.style.display = 'flex'; // Use flexbox for alignment
+    container.style.top = '20px';
+    container.style.right = '20px';
+    container.style.zIndex = '9999';
+    container.style.display = 'flex';
+    container.style.justifyContent = 'space-between';
+    container.style.alignItems = 'center';
 
     // Create an input field for user input
     var inputField = document.createElement('input');
     inputField.type = 'text';
-    inputField.placeholder = 'Enter new items'; // Placeholder text
-    inputField.style.height = '30px'; // Set input field height
-    inputField.style.marginRight = '10px'; // Adjust margin as needed
+    inputField.placeholder = 'Enter cart data';
+    inputField.style.height = '40px'; // Increase height to match buttons
+    inputField.style.flex = '1'; // Take remaining space
+    inputField.style.marginRight = '10px';
 
     // Create a submit button for user input
     var submitButton = document.createElement('button');
     submitButton.textContent = 'Submit';
-    submitButton.style.padding = '10px'; // Adjust padding as needed
-    submitButton.style.backgroundColor = 'blue'; // Adjust color as needed
-    submitButton.style.color = 'white'; // Adjust text color as needed
-    submitButton.style.border = 'none'; // Remove border if not needed
-    submitButton.style.borderRadius = '5px'; // Adjust border radius as needed
-
-    // Append input field and submit button to the container
-    container.appendChild(inputField);
-    container.appendChild(submitButton);
+    submitButton.style.padding = '10px';
+    submitButton.style.backgroundColor = 'blue';
+    submitButton.style.color = 'white';
+    submitButton.style.border = 'none';
+    submitButton.style.borderRadius = '5px';
 
     // Create a button element for copying stringified array of currentItems
     var copyButton = document.createElement('button');
-    copyButton.textContent = 'Copy currentItems';
-    copyButton.style.padding = '10px'; // Adjust padding as needed
-    copyButton.style.backgroundColor = 'green'; // Adjust color as needed
-    copyButton.style.color = 'white'; // Adjust text color as needed
-    copyButton.style.border = 'none'; // Remove border if not needed
-    copyButton.style.borderRadius = '5px'; // Adjust border radius as needed
-    copyButton.style.marginRight = '10px'; // Adjust margin as needed
+    copyButton.textContent = 'Copy Cart';
+    copyButton.style.padding = '10px';
+    copyButton.style.backgroundColor = 'green';
+    copyButton.style.color = 'white';
+    copyButton.style.border = 'none';
+    copyButton.style.borderRadius = '5px';
+    copyButton.style.marginRight = '10px';
 
-    // Append copyButton to the container
+    // Append copyButton and submitButton to the container
     container.appendChild(copyButton);
+    container.appendChild(submitButton);
+    container.appendChild(inputField);
 
     // Append container to the body
     document.body.appendChild(container);
+
+
+
 
     // Function to handle button click to copy stringified array of currentItems
     function handleCopy() {
@@ -65,7 +68,7 @@
             var cartId = dataLayerCart.cart.lineItems[0].cartId;
             getCartData(cartId)
                 .then(cart => {
-                    var currentItems = extractItemsAndCartInfo(cart);
+                    var currentItems = extractItems(cart.itemGroups);
                     var currentItemsStringified = JSON.stringify(currentItems);
                     copyToClipboard(currentItemsStringified);
                     copyButton.textContent = 'Copied!'; // Change button text when copied
@@ -86,11 +89,11 @@
     function handleSubmit() {
         var enteredText = inputField.value.trim();
         if (enteredText !== '') {
-            var newCartData;
+            var newItems;
             try {
-                newCartData = JSON.parse(enteredText);
+                newItems = JSON.parse(enteredText);
             } catch (error) {
-                console.error('Invalid input. Please enter a valid JSON.');
+                console.error('Invalid input. Please enter a valid JSON array.');
                 return;
             }
 
@@ -106,10 +109,9 @@
             if (cartId) {
                 getCartData(cartId)
                     .then(cart => {
-                    currentItems = extractItemsAndCartInfo(cart) || []; // Set currentItems to an empty array if null
-                    debugger
-                    if (!allItemsInCurrentItems(currentItems, newCartData.extractedItems)) {
-                        addToCart(newCartData.extractedItems, cartId, newCartData.extractedCartInfo.type, newCartData.extractedCartInfo.locationId);
+                    currentItems = extractItems(cart.itemGroups) || []; // Set currentItems to an empty array if null
+                    if (!allItemsInCurrentItems(currentItems, newItems)) {
+                        addToCart(newItems, cartId);
                         location.reload();
                     } else {
                         console.log('All items from newItems are already in currentItems.');
@@ -120,10 +122,8 @@
                 });
             } else {
                 console.log('Cart ID not found or invalid. Proceeding without cartId.');
-                debugger
-                addToCart(newCartData.extractedItems, cartId, newCartData.extractedCartInfo.type, newCartData.extractedCartInfo.locationId, newCartData.extractedCartInfo.clientAddress);
-
-                //location.reload();
+                addToCart(newItems, cartId);
+                location.reload();
                 // Perform an action here if cartId is not available
                 // For example, you might want to handle adding items to the cart without a cartId
             }
@@ -139,8 +139,8 @@
     submitButton.addEventListener('click', handleSubmit);
 
 
-    function extractItemsAndCartInfo(data) {
-        const extractedItems = data.itemGroups.map(item => {
+    function extractItems(itemGroups) {
+        return itemGroups.map(item => {
             return {
                 offer: {
                     id: null,
@@ -154,28 +154,17 @@
                 discounts: []
             };
         });
-
-        const extractedCartInfo = {
-            type: data.type,
-            locationId: data.locationId,
-            clientAddress: data.clientAddress,
-        };
-
-        return {
-            extractedItems,
-            extractedCartInfo
-        };
     }
-    function addToCart(items, cartId,cartType, locationId, clientAddress) {
+    function addToCart(items, cartId) {
     fetch("https://megamarket.ru/api/mobile/v2/cartService/offers/add", {
         "body": JSON.stringify({
             "identification": {
                 "id": cartId
             },
             "items": items,
-            "cartType": cartType,
-            "clientAddress": clientAddress,
-            "locationId": locationId
+            "cartType": "CART_TYPE_DEFAULT",
+            "clientAddress": null,
+            "locationId": null
         }),
         "method": "POST",
         "mode": "cors",
@@ -237,40 +226,6 @@
 
         return arr2Str.every(item => arr1Str.includes(item));
     }
-
-    function addNewItems() {
-        const dataLayerCart = dataLayer.find(item => item.cart);
-        if (dataLayerCart) {
-            let cartId = dataLayerCart.cart.lineItems[0].cartId;
-            getCartData(cartId)
-                .then(cart => {
-                console.log(cart.itemGroups); // Access cart data here
-                let currentItems = extractItems(cart.itemGroups);
-                let newItems = extractItems(data);
-
-                if (allItemsInCurrentItems(currentItems, newItems)){
-                    return
-                }
-                else{
-                    addToCart(newItems, cartId);
-                    location.reload();
-                }
-
-            })
-                .catch(error => {
-                console.error("Error occurred while fetching cart data:", error);
-            });
-        } else {
-            console.log('Cart JSON not found in the dataLayer array. Retrying...');
-            setTimeout(checkForCart, 1000); // Check again after 1 second
-        }
-    }
-
-    function checkForCart() {
-        printCartInfo();
-    }
-
-    checkForCart(); // Start checking for cart initially
 
 
 })();
