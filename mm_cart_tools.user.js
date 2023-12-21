@@ -16,7 +16,7 @@
 
 	var container = null;
 	var copyButton = null;
-	var readButton = null;
+	var textField = null; // New text field element
 
 	function addButtonContainer() {
 		if (window.location.href === 'https://megamarket.ru/multicart/') {
@@ -33,16 +33,13 @@
 				container.style.justifyContent = 'space-between';
 				container.style.alignItems = 'center';
 
-				readButton = document.createElement('button');
-				readButton.textContent = 'Read Clipboard';
-				readButton.style.padding = '10px';
-				readButton.style.backgroundColor = 'orange';
-				readButton.style.color = 'white';
-				readButton.style.border = 'none';
-				readButton.style.borderRadius = '5px';
-				readButton.style.marginRight = '10px';
+				textField = document.createElement('input'); // Create a text field
+				textField.type = 'text'; // Set the input type to text
+				textField.placeholder = 'Enter JSON data'; // Placeholder text for the field
+				textField.style.padding = '8px';
+				textField.style.marginRight = '10px';
+				textField.style.flex = '1'; // Let it expand within the container
 
-				// Create a button element for copying stringified array of currentItems
 				copyButton = document.createElement('button');
 				copyButton.textContent = 'Copy Cart';
 				copyButton.style.padding = '10px';
@@ -52,16 +49,22 @@
 				copyButton.style.borderRadius = '5px';
 				copyButton.style.marginRight = '10px';
 
-				// Append copyButton and submitButton to the container
+				// Append textField and copyButton to the container
+				container.appendChild(textField);
 				container.appendChild(copyButton);
-				container.appendChild(readButton);
 
 				// Append container to the body
 				document.body.appendChild(container);
 
 				// Add click event listener to the copyButton
 				copyButton.addEventListener('click', handleCopy);
-				readButton.addEventListener('click', readClipboard);
+
+				// Add submit event listener to the textField
+				textField.addEventListener('keydown', function(event) {
+					if (event.key === 'Enter') {
+						handleTextFieldSubmit();
+					}
+				});
 			}
 		} else {
 			removeButtonContainer();
@@ -93,41 +96,6 @@
 	};
 	observer.observe(document.body, observerConfig);
 
-	function addToCart(newCartData) {
-		var dataLayerCart = dataLayer.find(item => item.cart);
-		var cartId = null; // Initialize cartId as null
-
-		var currentItems = []; // Initialize currentItems as an empty array
-
-		if (dataLayerCart && dataLayerCart.cart && dataLayerCart.cart.lineItems && dataLayerCart.cart.lineItems.length > 0) {
-			cartId = dataLayerCart.cart.lineItems[0].cartId;
-		}
-
-		addToCartRequest(newCartData.extractedItems, cartId, newCartData.extractedCartInfo.type, newCartData.extractedCartInfo.locationId, newCartData.extractedCartInfo.clientAddress);
-		location.reload();
-	}
-
-	function readClipboard() {
-		navigator.clipboard.readText()
-			.then(text => {
-				const trimmedText = text.trim();
-				if (trimmedText !== '') {
-					try {
-						const jsonObject = JSON.parse(trimmedText);
-						console.log(jsonObject)
-						addToCart(jsonObject)
-					} catch (error) {
-						alert('Clipboard content is not valid JSON.');
-					}
-				} else {
-					alert('Clipboard is empty.');
-				}
-			})
-			.catch(err => {
-				console.error('Failed to read clipboard contents: ', err);
-			});
-	}
-	// Function to handle button click to copy stringified array of currentItems
 	function handleCopy() {
 		var dataLayerCart = dataLayer.find(item => item.cart);
 		if (dataLayerCart) {
@@ -139,7 +107,6 @@
 					var currentItemsStringified = JSON.stringify(currentItems);
 
 					GM.setClipboard(currentItemsStringified);
-					//copyToClipboard(currentItemsStringified);
 					copyButton.textContent = 'Copied!'; // Change button text when copied
 					copyButton.style.backgroundColor = 'orange';
 					setTimeout(function() {
@@ -155,6 +122,33 @@
 		}
 	}
 
+	function handleTextFieldSubmit() {
+		const trimmedText = textField.value.trim();
+		if (trimmedText !== '') {
+			try {
+				const jsonObject = JSON.parse(trimmedText);
+				addToCart(jsonObject);
+			} catch (error) {
+				alert('Entered text is not valid JSON.');
+			}
+		} else {
+			alert('Please enter JSON data.');
+		}
+	}
+
+	function addToCart(newCartData) {
+		var dataLayerCart = dataLayer.find(item => item.cart);
+		var cartId = null; // Initialize cartId as null
+
+		var currentItems = []; // Initialize currentItems as an empty array
+
+		if (dataLayerCart && dataLayerCart.cart && dataLayerCart.cart.lineItems && dataLayerCart.cart.lineItems.length > 0) {
+			cartId = dataLayerCart.cart.lineItems[0].cartId;
+		}
+
+		addToCartRequest(newCartData.extractedItems, cartId, newCartData.extractedCartInfo.type, newCartData.extractedCartInfo.locationId, newCartData.extractedCartInfo.clientAddress);
+		location.reload();
+	}
 
 	function extractItemsAndCartInfo(data) {
 		const extractedItems = data.itemGroups.map(item => {
