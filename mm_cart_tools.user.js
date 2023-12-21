@@ -68,6 +68,27 @@
 	};
 
 
+
+	const addNewFieldToEmptyCart = () => {
+		const cartEmptyDescription = document.querySelector('.cart-empty__description');
+		const cartInput = document.querySelector('.cart-input');
+		if (cartEmptyDescription && !cartInput) {
+			const textField = document.createElement('input');
+			textField.classList.add('cart-input');
+			textField.type = 'text';
+			textField.placeholder = 'Вставить';
+			textField.style.cssText = 'padding: 8px; margin-right: 10px; flex: 1;';
+			textField.addEventListener('keydown', event => {
+				if (event.key === 'Enter') {
+					handleTextFieldSubmit(textField);
+				}
+			});
+
+			// Inserting the new field element after the multicart__title element
+			cartEmptyDescription.parentNode.insertBefore(textField, cartEmptyDescription.nextSibling);
+		}
+	};
+
 	const addNewFieldAfterTitle = () => {
 		const multicartTitle = document.querySelector('.multicart__title');
 		if (multicartTitle) {
@@ -219,7 +240,7 @@
 
 
 
-	function handleNewElements(mutationsList, observer) {
+	function handleNewElements(mutationsList) {
 		for (const mutation of mutationsList) {
 			if (mutation.type === 'childList') {
 				mutation.addedNodes.forEach(node => {
@@ -231,27 +252,32 @@
 								addButtonToElement(element);
 								addDeleteButtonToElement(element);
 							});
-							addNewFieldAfterTitle()
+							const mulitiCart = document.querySelector('.multicart');
+							if (mulitiCart) {
+								addNewFieldAfterTitle();
+							}
+						}
+
+						// Run the function only if the element exists in the document
+						const cartEmpty = document.querySelector('.cart-empty');
+						if (cartEmpty) {
+							addNewFieldToEmptyCart(); // Run the function when cart-empty element is found
 						}
 					}
 				});
 			}
 		}
 	}
-
 	const extractItemsAndCartInfo = (data) => {
 		const extractedItems = data.itemGroups.map(item => {
 			return {
 				offer: {
-					id: null,
 					merchantId: item.merchant.id ? parseInt(item.merchant.id) : null
 				},
 				goods: {
 					goodsId: item.goods.goodsId
 				},
-				quantity: item.quantity,
-				isBpg20: false,
-				discounts: []
+				quantity: item.quantity
 			};
 		});
 
