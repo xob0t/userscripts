@@ -4,7 +4,7 @@
 // @version      2023-12-20
 // @description  try to take over the world!
 // @author       xob0t
-// @match        https://megamarket.ru/multicart/
+// @match        https://megamarket.ru/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=megamarket.ru
 // @grant        GM_setClipboard
 // @run-at       document-end
@@ -145,9 +145,7 @@
 		if (dataLayerCart && dataLayerCart.cart && dataLayerCart.cart.lineItems && dataLayerCart.cart.lineItems.length > 0) {
 			cartId = dataLayerCart.cart.lineItems[0].cartId;
 		}
-
 		addToCartRequest(newCartData.extractedItems, cartId, newCartData.extractedCartInfo.type, newCartData.extractedCartInfo.locationId, newCartData.extractedCartInfo.clientAddress);
-		location.reload();
 	}
 
 	function extractItemsAndCartInfo(data) {
@@ -179,28 +177,42 @@
 	}
 
 	function addToCartRequest(items, cartId, cartType, locationId, clientAddress) {
-		fetch("https://megamarket.ru/api/mobile/v2/cartService/offers/add", {
-				"body": JSON.stringify({
-					"identification": {
-						"id": cartId
-					},
-					"items": items,
-					"cartType": cartType,
-					"clientAddress": clientAddress,
-					"locationId": locationId
-				}),
-				"method": "POST",
-				"mode": "cors",
-				"credentials": "include"
-			})
-			.then(response => response.json())
-			.then(data => {
-				console.log("Cart Data:", data);
-			})
-			.catch(error => {
-				console.error('Error:', error);
-			});
+		var xhr = new XMLHttpRequest();
+		var url = "https://megamarket.ru/api/mobile/v2/cartService/offers/add";
+		xhr.open("POST", url);
+		xhr.setRequestHeader("Content-Type", "application/json");
+		xhr.withCredentials = true;
+
+		xhr.onreadystatechange = function() {
+			if (xhr.readyState === XMLHttpRequest.DONE) {
+				if (xhr.status === 200) {
+					var responseData = JSON.parse(xhr.responseText);
+					console.log("Cart Data:", responseData);
+					// Reload the page upon successful request
+					location.reload();
+				} else {
+					console.error("Error:", xhr.statusText);
+				}
+			}
+		};
+
+		xhr.onerror = function() {
+			console.error("Request failed");
+		};
+
+		var requestBody = {
+			"identification": {
+				"id": cartId
+			},
+			"items": items,
+			"cartType": cartType,
+			"clientAddress": clientAddress,
+			"locationId": locationId
+		};
+
+		xhr.send(JSON.stringify(requestBody));
 	}
+
 
 	function getAllCarts() {
 		return fetch("https://megamarket.ru/api/mobile/v2/cartService/cart/search", {
@@ -225,33 +237,48 @@
 	}
 
 	function getCartData(cartId) {
-		return fetch("https://megamarket.ru/api/mobile/v2/cartService/cart/get", {
-				method: "POST",
-				mode: "cors",
-				credentials: "include",
-				headers: {
-					"Content-Type": "application/json"
-				},
-				body: JSON.stringify({
-					"identification": {
-						"id": cartId
-					},
-					"isCartStateValidationRequired": true,
-					"isSelectedItemGroupsOnly": false,
-					"loyaltyCalculationRequired": true,
-					"isSkipPersonalDiscounts": true
-				})
-			})
-			.then(response => {
-				if (!response.ok) {
-					throw new Error('Network response was not ok.');
+		return new Promise((resolve, reject) => {
+			const xhr = new XMLHttpRequest();
+			const url = "https://megamarket.ru/api/mobile/v2/cartService/cart/get";
+
+			xhr.open("POST", url);
+			xhr.withCredentials = true;
+			xhr.setRequestHeader("Content-Type", "application/json");
+
+			xhr.onload = function() {
+				if (xhr.status === 200) {
+					try {
+						const response = JSON.parse(xhr.responseText);
+						resolve(response);
+					} catch (parseError) {
+						console.error('Error parsing response:', parseError);
+						reject(parseError);
+					}
+				} else {
+					const error = new Error('Network response was not ok.');
+					console.error('Error getCartData:', error);
+					reject(error);
 				}
-				return response.json();
-			})
-			.catch(error => {
-				console.error('Error:', error);
-				throw error;
-			});
+			};
+
+			xhr.onerror = function() {
+				const error = new Error('Request failed.');
+				console.error('Error getCartData:', error);
+				reject(error);
+			};
+
+			const requestData = {
+				"identification": {
+					"id": cartId
+				},
+				"isCartStateValidationRequired": true,
+				"isSelectedItemGroupsOnly": false,
+				"loyaltyCalculationRequired": true,
+				"isSkipPersonalDiscounts": true
+			};
+
+			xhr.send(JSON.stringify(requestData));
+		});
 	}
 
 
