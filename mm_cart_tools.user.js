@@ -32,14 +32,22 @@
 		const parentCart = button.closest('.multicart-item.cart.multicart__item');
 		let removeButtons = parentCart.querySelectorAll('.good__remove');
 
+		// Add CSS transition to the button for smoother visual changes
+		button.style.transition = 'background-color 0.5s ease-in-out, color 0.5s ease-in-out';
+
 		while (removeButtons.length > 0) {
 			for (const removeButton of removeButtons) {
 				await new Promise(resolve => {
 					setTimeout(() => {
+						button.textContent = 'Удаляем...'; // Change text while deletion is in progress
+						button.style.backgroundColor = 'darkred'; // Change button background color
+						button.style.transition = 'background-color 0.5s ease-in-out';
 						removeButton.click(); // Trigger click on each element with class "good__remove"
 						resolve();
 					}, 100); // Adjust the delay time as needed (in milliseconds)
 				});
+
+				// Restore initial button appearance after deletion
 			}
 			removeButtons = parentCart.querySelectorAll('.good__remove'); // Update the NodeList
 		}
@@ -168,7 +176,7 @@
 				cartData = extractItemsAndCartInfo(cartData);
 				const cartDataStringified = JSON.stringify(cartData);
 				await GM_setClipboard(cartDataStringified);
-				handleCopyButtonAnimation(button);
+				handleButtonAnimation(button, 'orange', 'Скопировано!')
 				console.log('Button clicked for item:', cartItem, 'Cart Content:', cartData);
 			} else {
 				console.log('Cart content not found for position:', position);
@@ -178,14 +186,18 @@
 		}
 	};
 
-	const handleCopyButtonAnimation = (button) => {
+	const handleButtonAnimation = (button, color, text) => {
 		const initialButtonText = button.textContent;
-		const initialButtonColor = button.style.backgroundColor
-		button.textContent = 'Скопировано!';
-		button.style.backgroundColor = 'orange';
+		const initialButtonColor = button.style.backgroundColor;
+
+		button.textContent = text;
+		button.style.backgroundColor = color;
+		button.style.transition = 'background-color 0.5s ease-in-out'; // Adding fade-in effect
+
 		setTimeout(() => {
 			button.textContent = initialButtonText;
-			button.style.backgroundColor = initialButtonColor
+			button.style.backgroundColor = initialButtonColor;
+			button.style.transition = 'background-color 0.5s ease-in-out'; // Adding fade-out effect
 		}, 2000);
 	};
 
