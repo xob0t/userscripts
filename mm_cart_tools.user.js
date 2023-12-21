@@ -2,7 +2,7 @@
 // @name         MM cart tools
 // @namespace    http://tampermonkey.net/
 // @version      2023-12-20
-// @description  try to take over the world!
+// @description  copy and paste cart items
 // @author       xob0t
 // @match        https://megamarket.ru/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=megamarket.ru
@@ -11,7 +11,6 @@
 // ==/UserScript==
 
 (function() {
-
 	'use strict';
 
 	var container = null;
@@ -19,9 +18,9 @@
 	var textField = null; // New text field element
 
 	function addButtonContainer() {
-		if (window.location.href === 'https://megamarket.ru/multicart/') {
+		if (window.location.href.startsWith('https://megamarket.ru/multicart')) {
 			if (!container) {
-				// Create a container div for button, input field, and submit button
+				// Create a container div for buttons, input field, and submit button
 				container = document.createElement('div');
 				container.id = 'cartToolsContainer'; // Set an ID for easy identification
 
@@ -40,16 +39,9 @@
 				textField.style.marginRight = '10px';
 				textField.style.flex = '1'; // Let it expand within the container
 
-				copyButton = document.createElement('button');
-				copyButton.textContent = 'Copy Cart';
-				copyButton.style.padding = '10px';
-				copyButton.style.backgroundColor = 'green';
-				copyButton.style.color = 'white';
-				copyButton.style.border = 'none';
-				copyButton.style.borderRadius = '5px';
-				copyButton.style.marginRight = '10px';
+				copyButton = createCopyButton('Copy Cart', 'green', handleCopy);
 
-				// Append textField and copyButton to the container
+				// Append textField and both buttons to the container
 				container.appendChild(textField);
 				container.appendChild(copyButton);
 
@@ -58,6 +50,7 @@
 
 				// Add click event listener to the copyButton
 				copyButton.addEventListener('click', handleCopy);
+
 
 				// Add submit event listener to the textField
 				textField.addEventListener('keydown', function(event) {
@@ -69,6 +62,19 @@
 		} else {
 			removeButtonContainer();
 		}
+	}
+
+	function createCopyButton(text, bgColor, clickHandler) {
+		var button = document.createElement('button');
+		button.textContent = text;
+		button.style.padding = '10px';
+		button.style.backgroundColor = bgColor;
+		button.style.color = 'white';
+		button.style.border = 'none';
+		button.style.borderRadius = '5px';
+		button.style.marginRight = '10px';
+		button.addEventListener('click', clickHandler); // Assign the clickHandler function
+		return button;
 	}
 
 	function removeButtonContainer() {
@@ -129,23 +135,21 @@
 				const jsonObject = JSON.parse(trimmedText);
 				addToCart(jsonObject);
 			} catch (error) {
+				console.error('Error parsing JSON:', error);
 				alert('Entered text is not valid JSON.');
 			}
-		} else {
-			alert('Please enter JSON data.');
 		}
 	}
+
 
 	function addToCart(newCartData) {
 		var dataLayerCart = dataLayer.find(item => item.cart);
 		var cartId = null; // Initialize cartId as null
 
-		var currentItems = []; // Initialize currentItems as an empty array
-
 		if (dataLayerCart && dataLayerCart.cart && dataLayerCart.cart.lineItems && dataLayerCart.cart.lineItems.length > 0) {
 			cartId = dataLayerCart.cart.lineItems[0].cartId;
 		}
-		addToCartRequest(newCartData.extractedItems, cartId, newCartData.extractedCartInfo.type, newCartData.extractedCartInfo.locationId, newCartData.extractedCartInfo.clientAddress);
+		addToCartRequest(newCartData.extractedItems, cartId, newCartData.extractedCartInfo.type, newCartData.extractedCartInfo.locationId);
 	}
 
 	function extractItemsAndCartInfo(data) {
@@ -167,7 +171,7 @@
 		const extractedCartInfo = {
 			type: data.type,
 			locationId: data.locationId,
-			clientAddress: data.clientAddress,
+			//addressId: data.clientAddress.addressId,
 		};
 
 		return {
@@ -176,42 +180,52 @@
 		};
 	}
 
-	function addToCartRequest(items, cartId, cartType, locationId, clientAddress) {
-		var xhr = new XMLHttpRequest();
+
+
+	function addToCartRequest(items, cartId, cartType, locationId) {
 		var url = "https://megamarket.ru/api/mobile/v2/cartService/offers/add";
-		xhr.open("POST", url);
-		xhr.setRequestHeader("Content-Type", "application/json");
-		xhr.withCredentials = true;
-
-		xhr.onreadystatechange = function() {
-			if (xhr.readyState === XMLHttpRequest.DONE) {
-				if (xhr.status === 200) {
-					var responseData = JSON.parse(xhr.responseText);
-					console.log("Cart Data:", responseData);
-					// Reload the page upon successful request
-					location.reload();
-				} else {
-					console.error("Error:", xhr.statusText);
-				}
-			}
-		};
-
-		xhr.onerror = function() {
-			console.error("Request failed");
-		};
-
 		var requestBody = {
 			"identification": {
 				"id": cartId
 			},
 			"items": items,
 			"cartType": cartType,
-			"clientAddress": clientAddress,
+			"clientAddress": {
+				"address": "address",
+				"addressId": "addressId",
+				"geo": {
+					"lat": "0",
+					"lon": "0"
+				}
+			},
+
 			"locationId": locationId
 		};
 
-		xhr.send(JSON.stringify(requestBody));
+		fetch(url, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json"
+				},
+				credentials: "include",
+				body: JSON.stringify(requestBody)
+			})
+			.then(function(response) {
+				if (!response.ok) {
+					throw new Error("Network response was not ok");
+				}
+				return response.json();
+			})
+			.then(function(responseData) {
+				console.log("Cart Data:", responseData);
+				// Reload the page upon successful request
+				location.reload();
+			})
+			.catch(function(error) {
+				console.error("Error:", error.message);
+			});
 	}
+
 
 
 	function getAllCarts() {
@@ -222,7 +236,7 @@
 				headers: {
 					"Content-Type": "application/json"
 				},
-				body: ""
+				body: null
 			})
 			.then(response => {
 				if (!response.ok) {
@@ -236,49 +250,34 @@
 			});
 	}
 
+
 	function getCartData(cartId) {
-		return new Promise((resolve, reject) => {
-			const xhr = new XMLHttpRequest();
-			const url = "https://megamarket.ru/api/mobile/v2/cartService/cart/get";
-
-			xhr.open("POST", url);
-			xhr.withCredentials = true;
-			xhr.setRequestHeader("Content-Type", "application/json");
-
-			xhr.onload = function() {
-				if (xhr.status === 200) {
-					try {
-						const response = JSON.parse(xhr.responseText);
-						resolve(response);
-					} catch (parseError) {
-						console.error('Error parsing response:', parseError);
-						reject(parseError);
-					}
-				} else {
-					const error = new Error('Network response was not ok.');
-					console.error('Error getCartData:', error);
-					reject(error);
-				}
-			};
-
-			xhr.onerror = function() {
-				const error = new Error('Request failed.');
-				console.error('Error getCartData:', error);
-				reject(error);
-			};
-
-			const requestData = {
-				"identification": {
-					"id": cartId
+		return fetch("https://megamarket.ru/api/mobile/v2/cartService/cart/get", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json"
 				},
-				"isCartStateValidationRequired": true,
-				"isSelectedItemGroupsOnly": false,
-				"loyaltyCalculationRequired": true,
-				"isSkipPersonalDiscounts": true
-			};
-
-			xhr.send(JSON.stringify(requestData));
-		});
+				credentials: "include",
+				body: JSON.stringify({
+					"identification": {
+						"id": cartId
+					},
+					"isCartStateValidationRequired": true,
+					"isSelectedItemGroupsOnly": false,
+					"loyaltyCalculationRequired": true,
+					"isSkipPersonalDiscounts": true
+				})
+			})
+			.then(response => {
+				if (!response.ok) {
+					throw new Error('Network response was not ok.');
+				}
+				return response.json();
+			})
+			.catch(error => {
+				console.error('Error getCartData:', error);
+				throw error;
+			});
 	}
 
 
