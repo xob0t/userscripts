@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MM cart tools optimized
 // @namespace    http://tampermonkey.net/
-// @version      2023-12-20
+// @version      2023-12-21
 // @description  copy and paste cart items
 // @author       xob0t
 // @match        https://megamarket.ru/*
