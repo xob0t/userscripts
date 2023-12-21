@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         MM cart tools
+// @name         MM cart tools optimized
 // @namespace    http://tampermonkey.net/
 // @version      2023-12-20
 // @description  copy and paste cart items
@@ -10,275 +10,214 @@
 // @run-at       document-end
 // ==/UserScript==
 
-(function() {
-	'use strict';
+(function () {
+    'use strict';
 
-	var container = null;
-	var copyButton = null;
-	var textField = null; // New text field element
+    let container = null;
+    let copyButton = null;
+    let textField = null;
 
-	function addButtonContainer() {
-		if (window.location.href.startsWith('https://megamarket.ru/multicart')) {
-			if (!container) {
-				// Create a container div for buttons, input field, and submit button
-				container = document.createElement('div');
-				container.id = 'cartToolsContainer'; // Set an ID for easy identification
+    const addButtonContainer = () => {
+        if (window.location.href.startsWith('https://megamarket.ru/multicart')) {
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'cartToolsContainer';
+                container.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; justify-content: space-between; align-items: center;';
 
-				container.style.position = 'fixed';
-				container.style.top = '20px';
-				container.style.right = '20px';
-				container.style.zIndex = '9999';
-				container.style.display = 'flex';
-				container.style.justifyContent = 'space-between';
-				container.style.alignItems = 'center';
+                textField = document.createElement('input');
+                textField.type = 'text';
+                textField.placeholder = 'Вставить';
+                textField.style.cssText = 'padding: 8px; margin-right: 10px; flex: 1;';
 
-				textField = document.createElement('input'); // Create a text field
-				textField.type = 'text'; // Set the input type to text
-				textField.placeholder = 'Enter JSON data'; // Placeholder text for the field
-				textField.style.padding = '8px';
-				textField.style.marginRight = '10px';
-				textField.style.flex = '1'; // Let it expand within the container
+                copyButton = createCopyButton('Копировать', 'green', handleCopy);
 
-				copyButton = createCopyButton('Copy Cart', 'green', handleCopy);
+                container.appendChild(textField);
+                container.appendChild(copyButton);
 
-				// Append textField and both buttons to the container
-				container.appendChild(textField);
-				container.appendChild(copyButton);
+                document.body.appendChild(container);
 
-				// Append container to the body
-				document.body.appendChild(container);
+                copyButton.addEventListener('click', handleCopy);
+                textField.addEventListener('keydown', event => {
+                    if (event.key === 'Enter') {
+                        handleTextFieldSubmit();
+                    }
+                });
+            }
+        } else {
+            removeButtonContainer();
+        }
+    };
 
-				// Add click event listener to the copyButton
-				copyButton.addEventListener('click', handleCopy);
+    const createCopyButton = (text, bgColor, clickHandler) => {
+        const button = document.createElement('button');
+        button.textContent = text;
+        button.style.cssText = `padding: 10px; background-color: ${bgColor}; color: white; border: none; border-radius: 5px; margin-right: 10px;`;
+        button.addEventListener('click', clickHandler);
+        return button;
+    };
 
+    const removeButtonContainer = () => {
+        const existingContainer = document.getElementById('cartToolsContainer');
+        if (existingContainer) {
+            existingContainer.remove();
+            container = null;
+        }
+    };
 
-				// Add submit event listener to the textField
-				textField.addEventListener('keydown', function(event) {
-					if (event.key === 'Enter') {
-						handleTextFieldSubmit();
-					}
-				});
-			}
-		} else {
-			removeButtonContainer();
-		}
-	}
+    const handleCopy = async () => {
+        const dataLayerCart = dataLayer.find(item => item.cart);
+        if (dataLayerCart) {
+            const cartId = dataLayerCart.cart.lineItems[0]?.cartId;
+            try {
+                const cart = await getCartData(cartId);
+                const currentItems = extractItemsAndCartInfo(cart);
+                const currentItemsStringified = JSON.stringify(currentItems);
+                await GM_setClipboard(currentItemsStringified);
+                handleCopyButtonAnimation();
+            } catch (error) {
+                console.error("Error occurred while fetching cart data:", error);
+                alert("Error occurred while fetching cart data.");
+            }
+        } else {
+            console.log('Cart JSON not found in the dataLayer array.');
+        }
+    };
 
-	function createCopyButton(text, bgColor, clickHandler) {
-		var button = document.createElement('button');
-		button.textContent = text;
-		button.style.padding = '10px';
-		button.style.backgroundColor = bgColor;
-		button.style.color = 'white';
-		button.style.border = 'none';
-		button.style.borderRadius = '5px';
-		button.style.marginRight = '10px';
-		button.addEventListener('click', clickHandler); // Assign the clickHandler function
-		return button;
-	}
+    const handleTextFieldSubmit = () => {
+        const trimmedText = textField.value.trim();
+        if (trimmedText !== '') {
+            try {
+                const newCartData = JSON.parse(trimmedText);
+                addToCartRequest(newCartData.extractedItems, newCartData.extractedCartInfo.type, newCartData.extractedCartInfo.locationId);
+            } catch (error) {
+                console.error('Error parsing JSON:', error);
+                alert('Entered text is not valid JSON.');
+            }
+        }
+    };
 
-	function removeButtonContainer() {
-		var existingContainer = document.getElementById('cartToolsContainer');
-		if (existingContainer) {
-			existingContainer.parentNode.removeChild(existingContainer);
-			container = null;
-		}
-	}
+    const handleCopyButtonAnimation = () => {
+        const initialButtonText = copyButton.textContent;
+        copyButton.textContent = 'Скопировано!';
+        copyButton.style.backgroundColor = 'orange';
+        setTimeout(() => {
+            copyButton.textContent = initialButtonText;
+            copyButton.style.backgroundColor = 'green';
+        }, 2000);
+    };
 
-	// Initial check and addition of buttons
-	addButtonContainer();
+    const extractItemsAndCartInfo = (data) => {
+        const extractedItems = data.itemGroups.map(item => {
+            return {
+                offer: {
+                    id: null,
+                    merchantId: item.merchant.id ? parseInt(item.merchant.id) : null
+                },
+                goods: {
+                    goodsId: item.goods.goodsId
+                },
+                quantity: item.quantity,
+                isBpg20: false,
+                discounts: []
+            };
+        });
 
-	// Monitor changes in the page using MutationObserver
-	var observer = new MutationObserver(function(mutations) {
-		mutations.forEach(function(mutation) {
-			addButtonContainer(); // Recheck and manage buttons on any changes in the page content
-		});
-	});
+        const extractedCartInfo = {
+            type: data.type,
+            locationId: data.locationId,
+        };
 
-	// Configuration of the observer: observe changes in the body element and its subtree
-	var observerConfig = {
-		childList: true,
-		subtree: true
-	};
-	observer.observe(document.body, observerConfig);
+        return {
+            extractedItems,
+            extractedCartInfo
+        };
+    };
 
-	function handleCopy() {
-		var dataLayerCart = dataLayer.find(item => item.cart);
-		if (dataLayerCart) {
-			var cartId = dataLayerCart.cart.lineItems[0].cartId;
-			getCartData(cartId)
-				.then(cart => {
-					var currentItems = extractItemsAndCartInfo(cart);
-					console.log(currentItems);
-					var currentItemsStringified = JSON.stringify(currentItems);
+    const addToCartRequest = (items, cartType, locationId) => {
+        const url = "https://megamarket.ru/api/mobile/v2/cartService/offers/add";
+        const requestBody = {
+            "identification": {
+                "id": null
+            },
+            "items": items,
+            "cartType": cartType,
+            "clientAddress": {
+                "address": "foo",
+                "addressId": "bar",
+                "geo": {
+                    "lat": "0",
+                    "lon": "0"
+                }
+            },
+            "locationId": locationId
+        };
 
-					GM.setClipboard(currentItemsStringified);
-					copyButton.textContent = 'Copied!'; // Change button text when copied
-					copyButton.style.backgroundColor = 'orange';
-					setTimeout(function() {
-						copyButton.textContent = 'Copy Cart'; // Revert button text after a brief delay
-						copyButton.style.backgroundColor = 'green';
-					}, 3000); // Change button text back after 3 seconds
-				})
-				.catch(error => {
-					alert("Error occurred while fetching cart data:", error);
-				});
-		} else {
-			console.log('Cart JSON not found in the dataLayer array.');
-		}
-	}
+        fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            credentials: "include",
+            body: JSON.stringify(requestBody)
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error("Network response was not ok");
+                }
+                return response.json();
+            })
+            .then(responseData => {
+                console.log("Cart Data:", responseData);
+                location.reload();
+            })
+            .catch(error => {
+                console.error("Error:", error.message);
+            });
+    };
 
-	function handleTextFieldSubmit() {
-		const trimmedText = textField.value.trim();
-		if (trimmedText !== '') {
-			try {
-				const jsonObject = JSON.parse(trimmedText);
-				addToCart(jsonObject);
-			} catch (error) {
-				console.error('Error parsing JSON:', error);
-				alert('Entered text is not valid JSON.');
-			}
-		}
-	}
+    const getCartData = (cartId) => {
+        return fetch("https://megamarket.ru/api/mobile/v2/cartService/cart/get", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            credentials: "include",
+            body: JSON.stringify({
+                "identification": {
+                    "id": cartId
+                },
+                "isCartStateValidationRequired": true,
+                "isSelectedItemGroupsOnly": false,
+                "loyaltyCalculationRequired": true,
+                "isSkipPersonalDiscounts": true
+            })
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok.');
+                }
+                return response.json();
+            })
+            .catch(error => {
+                console.error('Error getCartData:', error);
+                throw error;
+            });
+    };
 
+    // Initial check and addition of buttons
+    addButtonContainer();
 
-	function addToCart(newCartData) {
-		var dataLayerCart = dataLayer.find(item => item.cart);
-		var cartId = null; // Initialize cartId as null
+    // Monitor changes in the page using MutationObserver
+    const observer = new MutationObserver(mutations => {
+        mutations.forEach(mutation => {
+            addButtonContainer(); // Recheck and manage buttons on any changes in the page content
+        });
+    });
 
-		if (dataLayerCart && dataLayerCart.cart && dataLayerCart.cart.lineItems && dataLayerCart.cart.lineItems.length > 0) {
-			cartId = dataLayerCart.cart.lineItems[0].cartId;
-		}
-		addToCartRequest(newCartData.extractedItems, cartId, newCartData.extractedCartInfo.type, newCartData.extractedCartInfo.locationId);
-	}
-
-	function extractItemsAndCartInfo(data) {
-		const extractedItems = data.itemGroups.map(item => {
-			return {
-				offer: {
-					id: null,
-					merchantId: item.merchant.id ? parseInt(item.merchant.id) : null
-				},
-				goods: {
-					goodsId: item.goods.goodsId
-				},
-				quantity: item.quantity,
-				isBpg20: false,
-				discounts: []
-			};
-		});
-
-		const extractedCartInfo = {
-			type: data.type,
-			locationId: data.locationId,
-			//addressId: data.clientAddress.addressId,
-		};
-
-		return {
-			extractedItems,
-			extractedCartInfo
-		};
-	}
-
-
-
-	function addToCartRequest(items, cartId, cartType, locationId) {
-		var url = "https://megamarket.ru/api/mobile/v2/cartService/offers/add";
-		var requestBody = {
-			"identification": {
-				"id": cartId
-			},
-			"items": items,
-			"cartType": cartType,
-			"clientAddress": {
-				"address": "address",
-				"addressId": "addressId",
-				"geo": {
-					"lat": "0",
-					"lon": "0"
-				}
-			},
-
-			"locationId": locationId
-		};
-
-		fetch(url, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json"
-				},
-				credentials: "include",
-				body: JSON.stringify(requestBody)
-			})
-			.then(function(response) {
-				if (!response.ok) {
-					throw new Error("Network response was not ok");
-				}
-				return response.json();
-			})
-			.then(function(responseData) {
-				console.log("Cart Data:", responseData);
-				// Reload the page upon successful request
-				location.reload();
-			})
-			.catch(function(error) {
-				console.error("Error:", error.message);
-			});
-	}
-
-
-
-	function getAllCarts() {
-		return fetch("https://megamarket.ru/api/mobile/v2/cartService/cart/search", {
-				method: "POST",
-				mode: "cors",
-				credentials: "include",
-				headers: {
-					"Content-Type": "application/json"
-				},
-				body: null
-			})
-			.then(response => {
-				if (!response.ok) {
-					throw new Error('Network response was not ok.');
-				}
-				return response.json();
-			})
-			.catch(error => {
-				console.error('Error:', error);
-				throw error;
-			});
-	}
-
-
-	function getCartData(cartId) {
-		return fetch("https://megamarket.ru/api/mobile/v2/cartService/cart/get", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json"
-				},
-				credentials: "include",
-				body: JSON.stringify({
-					"identification": {
-						"id": cartId
-					},
-					"isCartStateValidationRequired": true,
-					"isSelectedItemGroupsOnly": false,
-					"loyaltyCalculationRequired": true,
-					"isSkipPersonalDiscounts": true
-				})
-			})
-			.then(response => {
-				if (!response.ok) {
-					throw new Error('Network response was not ok.');
-				}
-				return response.json();
-			})
-			.catch(error => {
-				console.error('Error getCartData:', error);
-				throw error;
-			});
-	}
-
-
+    // Configuration of the observer: observe changes in the body element and its subtree
+    const observerConfig = {
+        childList: true,
+        subtree: true
+    };
+    observer.observe(document.body, observerConfig);
 })();
