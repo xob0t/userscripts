@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         avito add address
 // @namespace    https://github.com/xob0t/userscripts
-// @version      0.5
+// @version      0.5.1
 // @description  встраивает адреса в поисковую выдачу
 // @author       xob0t
 // @match        https://www.avito.ru/*
@@ -171,15 +171,12 @@ async function getFavoritesPage() {
   });
 }
 
-function getCatalogData(initialData) {
-  const avitoKey = Object.keys(initialData).find((key) => key.startsWith(catalogKeyString));
-
-  if (avitoKey) {
-    const catalogItems = initialData[avitoKey].data.catalog.items;
-    return catalogItems.filter((item) => item.hasOwnProperty("categoryId"));
-  } else {
-    console.error(`${logPrefix} Catalog Key ${catalogKeyString} not found`);
-  }
+function getCatalogData(initCatalogData) {
+  const catalogItems = initCatalogData.data.catalog.items;
+  const extraItems = initCatalogData.data.catalog.extraBlockItems;
+  let allItems = catalogItems.concat(extraItems);
+  allItems = allItems.filter((item) => item.hasOwnProperty("categoryId"));
+  return allItems;
 }
 
 function parseInitialData(initialDataContent) {
@@ -283,7 +280,7 @@ async function main() {
             if (!catalogData) return;
             processSearchPage();
           }
-          if (node?.nodeName === "SCRIPT" && node?.textContent?.includes("searchHash")) {
+          if (node instanceof HTMLScriptElement && node?.textContent?.includes("searchHash") && !node?.textContent?.startsWith("window[")) {
             const initCatalogDataContent = await waitForNodeContent(node, "hashedId");
             if (initCatalogDataContent.startsWith("window.__initialData__")) {
               initialData = parseInitialData(initCatalogDataContent);
