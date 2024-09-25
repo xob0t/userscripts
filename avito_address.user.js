@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         avito add address
 // @namespace    https://github.com/xob0t/userscripts
-// @version      0.5.1
+// @version      0.5.2
 // @description  встраивает адреса в поисковую выдачу
 // @author       xob0t
 // @match        https://www.avito.ru/*
@@ -280,8 +280,8 @@ async function main() {
             if (!catalogData) return;
             processSearchPage();
           }
-          if (node instanceof HTMLScriptElement && node?.textContent?.includes("searchHash") && !node?.textContent?.startsWith("window[")) {
-            const initCatalogDataContent = await waitForNodeContent(node, "hashedId");
+          if (node instanceof HTMLScriptElement && node?.textContent?.includes("abCentral") && !node?.textContent?.startsWith("window[")) {
+            const initCatalogDataContent = await waitForNodeContent(node, "searchCore");
             if (initCatalogDataContent.startsWith("window.__initialData__")) {
               initialData = parseInitialData(initCatalogDataContent);
               catalogData = getCatalogDataFromInit(initialData);
